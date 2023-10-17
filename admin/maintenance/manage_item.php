@@ -10,19 +10,33 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
 }
 ?>
 <div class="container-fluid">
-	<form action="" id="item-form">
-		<input type="hidden" name ="id" value="<?php echo isset($id) ? $id : '' ?>">
+	<form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post" id="item-form">
+		<input type="hidden" name ="id" value="<?php echo isset($id) ? $id : ''; ?>">
 		<div class="form-group">
 			<label for="name" class="control-label">Name</label>
 			<input type="text" name="name" id="name" class="form-control rounded-0" value="<?php echo isset($name) ? $name : ''; ?>">
 		</div>
 		<div class="form-group">
-			<label for="classification" class="control-label">classification</label>
-			<textarea name="classification" id="classification" cols="30" rows="2" class="form-control form no-resize"><?php echo isset($classification) ? $classification : ''; ?></textarea>
+			<label for="classification" class="control-label">Classification</label>
+			<select name="classification" id="classification" class="form-control">
+				<option value="IMPORT">IMPORT</option>
+				<option value="IMPORT">DRY</option>
+				<option value="FG">FG</option>
+				<option value="FG">FG-IMPORT</option>
+				<option value="FG">FG-NSQCS</option>
+				<option value="SFG">NEW BLENDED</option>
+				<option value="SFG">NEW SFG</option>
+				<option value="SFG">SFG</option>
+				<option value="SFG">SFG-NSQCS</option>
+				<option value="SFG">OLD SFG</option>
+				<option value="SFG">OLD BLENDED</option>
+        	
+        		<option value="Safe Keep">Safe Keep</option>
+			</select>
 		</div>
 		<div class="form-group">
-			<label for="cost" class="control-label">Cost</label>
-			<input type="number" name="cost" id="cost" step="any" class="form-control rounded-0 text-end" value="<?php echo isset($cost) ? $cost : ''; ?>">
+			<label for="lot_no" class="control-label">Lot no</label>
+			<input type="number" name="lot_no" id="name" class="form-control rounded-0" value="<?php echo isset($lot_no) ? $lot_no : ''; ?>">
 		</div>
 		<div class="form-group">
 			<label for="warehouse_id" class="control-label">warehouse</label>
@@ -38,7 +52,7 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
 		</div>
 		<div class="form-group">
 			<label for="status" class="control-label">Status</label>
-			<select name="status" id="status" class="custom-select selevt">
+			<select name="status" id="status" class="custom-select select">
 			<option value="1" <?php echo isset($status) && $status == 1 ? 'selected' : '' ?>>Active</option>
 			<option value="0" <?php echo isset($status) && $status == 0 ? 'selected' : '' ?>>Inactive</option>
 			</select>
@@ -47,43 +61,42 @@ if(isset($_GET['id']) && $_GET['id'] > 0){
 </div>
 <script>
   
-	$(document).ready(function(){
-        $('.select2').select2({placeholder:"Please Select here",width:"relative"})
-		$('#item-form').submit(function(e){
-			e.preventDefault();
-            var _this = $(this)
-			 $('.err-msg').remove();
-			start_loader();
-			$.ajax({
-				url:_base_url_+"classes/Master.php?f=save_item",
-				data: new FormData($(this)[0]),
-                cache: false,
-                contentType: false,
-                processData: false,
-                method: 'POST',
-                type: 'POST',
-                dataType: 'json',
-				error:err=>{
-					console.log(err)
-					alert_toast("An error occured",'error');
-					end_loader();
-				},
-				success:function(resp){
-					if(typeof resp =='object' && resp.status == 'success'){
-						location.reload();
-					}else if(resp.status == 'failed' && !!resp.msg){
-                        var el = $('<div>')
-                            el.addClass("alert alert-danger err-msg").text(resp.msg)
-                            _this.prepend(el)
-                            el.show('slow')
-                            end_loader()
-                    }else{
-						alert_toast("An error occured",'error');
-						end_loader();
-                        console.log(resp)
-					}
-				}
-			})
-		})
-	})
+  $(document).ready(function () {
+    $('.select2').select2({ placeholder: "Please Select here", width: "relative" });
+    $('#item-form').submit(function (e) {
+        e.preventDefault();
+        var _this = $(this);
+        $('.err-msg').remove();
+        start_loader();
+        $.ajax({
+            url: _base_url_ + "classes/Master.php?f=save_item",
+            data: new FormData($(this)[0]),
+            cache: false,
+            contentType: false,
+            processData: false,
+            method: 'POST', // Change 'type' to 'method'
+            dataType: 'json',
+            error: err => {
+                console.log(err);
+                alert_toast("An error occurred", 'error');
+                end_loader();
+            },
+            success: function (resp) {
+                if (resp.status === 'success') {
+                    location.reload();
+                } else if (resp.status === 'failed' && resp.msg) {
+                    var el = $('<div>');
+                    el.addClass("alert alert-danger err-msg").text(resp.msg);
+                    _this.prepend(el);
+                    el.show('slow');
+                    end_loader();
+                } else {
+                    alert_toast("An error occurred", 'error');
+                    end_loader();
+                    console.log(resp);
+                }
+            }
+        });
+    });
+});
 </script>
