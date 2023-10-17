@@ -1,6 +1,6 @@
 <div class="card card-outline card-primary">
 	<div class="card-header">
-		<h3 class="card-title">List of Item</h3>
+		<h3 class="card-title">List of Variety</h3>
 		<div class="card-tools">
 			<a href="javascript:void(0)" id="create_new" class="btn btn-flat btn-primary"><span class="fas fa-plus"></span>  Add New</a>
 		</div>
@@ -14,7 +14,8 @@
 					<col width="15%">
 					<col width="25%">
 					<col width="20%">
-					<col width="15%">
+					<col width="20%">
+					<col width="20%">
 					<col width="20%">
 				</colgroup>
 				<thead>
@@ -22,8 +23,9 @@
 						<th>#</th>
 						<th>Date Created</th>
 						<th>Name</th>
-						<th>warehouse</th>
-						<th>Status</th>
+						<th>Classification</th>
+						<th>Lot No</th>
+						<th>Warehouse</th>
 						<th>Action</th>
 					</tr>
 				</thead>
@@ -37,14 +39,9 @@
 							<td class="text-center"><?php echo $i++; ?></td>
 							<td><?php echo date("Y-m-d H:i",strtotime($row['date_created'])) ?></td>
 							<td><?php echo $row['name'] ?></td>
+							<td><?php echo $row['classification'] ?></td>
+							<td><?php echo $row['lot_no'] ?></td>
 							<td><?php echo $row['warehouse'] ?></td>
-							<td class="text-center">
-                                <?php if($row['status'] == 1): ?>
-                                    <span class="badge badge-success rounded-pill">Active</span>
-                                <?php else: ?>
-                                    <span class="badge badge-danger rounded-pill">Inactive</span>
-                                <?php endif; ?>
-                            </td>
 							<td align="center">
 								 <button type="button" class="btn btn-flat btn-default btn-sm dropdown-toggle dropdown-icon" data-toggle="dropdown">
 				                  		Action
@@ -92,14 +89,14 @@
 			dataType:"json",
 			error:err=>{
 				console.log(err)
-				alert_toast("An error occured.",'error');
+				alert_toast("An error occurred.",'error');
 				end_loader();
 			},
 			success:function(resp){
 				if(typeof resp== 'object' && resp.status == 'success'){
 					location.reload();
 				}else{
-					alert_toast("An error occured.",'error');
+					alert_toast("An error occurred.",'error');
 					end_loader();
 				}
 			}
