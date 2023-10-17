@@ -73,44 +73,75 @@ Class Master extends DBConnection {
 		return json_encode($resp);
 
 	}
-	function save_item(){
+	function save_item() {
 		extract($_POST);
-		$data = "";
-		foreach($_POST as $k =>$v){
-			if(!in_array($k,array('id'))){
+		$resp = array();
+		
+		if (isset($classification)) {
+			$classification = $this->conn->real_escape_string($classification);
+		}
+	
+		$data = array();
+	
+		foreach ($_POST as $k => $v) {
+			if (!in_array($k, array('id'))) {
 				$v = $this->conn->real_escape_string($v);
-				if(!empty($data)) $data .=",";
-				$data .= " `{$k}`='{$v}' ";
+				$data[$k] = $v;
 			}
 		}
-		$check = $this->conn->query("SELECT * FROM `item_list` where `name` = '{$name}' and `supplier_id` = '{$supplier_id}' ".(!empty($id) ? " and id != {$id} " : "")." ")->num_rows;
-		if($this->capture_err())
-			return $this->capture_err();
-		/*if($check > 0){
+	
+		$checkQuery = "SELECT COUNT(*) as count FROM `item_list` WHERE `name` = '$name' AND `warehouse_id` = $warehouse_id";
+		
+		if (!empty($id)) {
+			$checkQuery .= " AND id != $id";
+		}
+	
+		$checkResult = $this->conn->query($checkQuery);
+	
+		if ($this->capture_err()) {
 			$resp['status'] = 'failed';
-			$resp['msg'] = "Item already exists under selected supplier.";
+			$resp['msg'] = 'An error occurred';
 			return json_encode($resp);
-			exit;
-		}*/
-		if(empty($id)){
-			$sql = "INSERT INTO `item_list` set {$data} ";
-			$save = $this->conn->query($sql);
-		}else{
-			$sql = "UPDATE `item_list` set {$data} where id = '{$id}' ";
-			$save = $this->conn->query($sql);
 		}
-		if($save){
-			$resp['status'] = 'success';
-			if(empty($id))
-				$this->settings->set_flashdata('success',"New Item successfully saved.");
-			else
-				$this->settings->set_flashdata('success',"Item successfully updated.");
-		}else{
+	
+		$row = $checkResult->fetch_assoc();
+		$itemCount = $row['count'];
+	
+		/*if ($itemCount > 0) {
 			$resp['status'] = 'failed';
-			$resp['err'] = $this->conn->error."[{$sql}]";
+			$resp['msg'] = "Item already exists under the selected warehouse.";
+			return json_encode($resp);
+		}*/
+	
+		if (empty($id)) {
+			$columns = implode(', ', array_keys($data));
+			$values = "'" . implode("', '", $data) . "'";
+			$sql = "INSERT INTO `item_list` ($columns) VALUES ($values)";
+		} else {
+			$updates = array();
+			foreach ($data as $key => $value) {
+				$updates[] = "`$key` = '$value'";
+			}
+			$sql = "UPDATE `item_list` SET " . implode(', ', $updates) . " WHERE id = $id";
 		}
+	
+		$save = $this->conn->query($sql);
+	
+		if ($save) {
+			$resp['status'] = 'success';
+			if (empty($id)) {
+				$this->settings->set_flashdata('success', "New Item successfully saved.");
+			} else {
+				$this->settings->set_flashdata('success', "Item successfully updated.");
+			}
+		} else {
+			$resp['status'] = 'failed';
+			$resp['err'] = $this->conn->error . " [$sql]";
+		}
+	
 		return json_encode($resp);
-	}
+	}	
+
 	function delete_item(){
 		extract($_POST);
 		$del = $this->conn->query("DELETE FROM `item_list` where id = '{$id}'");
@@ -122,74 +153,93 @@ Class Master extends DBConnection {
 			$resp['error'] = $this->conn->error;
 		}
 		return json_encode($resp);
-
 	}
-	function save_po(){
-		if(empty($_POST['id'])){
-			$prefix = "PO";
-			$code = sprintf("%'.04d",1);
-			while(true){
-				$check_code = $this->conn->query("SELECT * FROM `stock_in_list` where po_code ='".$prefix.'-'.$code."' ")->num_rows;
-				if($check_code > 0){
-					$code = sprintf("%'.04d",$code+1);
-				}else{
+
+	function save_po() {
+		$resp = array(); // Initialize the response array
+	
+		if (empty($_POST['id'])) {
+			$prefix = "ST";
+			$code = 1;
+			while (true) {
+				$st_code = $prefix . '-' . sprintf("%04d", $code);
+				$check_code = $this->conn->query("SELECT * FROM `stock_in_list` WHERE st_code = '" . $st_code . "'")->num_rows;
+				if ($check_code > 0) {
+					$code++;
+				} else {
+					$_POST['st_code'] = $st_code;
 					break;
 				}
 			}
-			$_POST['po_code'] = $prefix."-".$code;
 		}
+	
 		extract($_POST);
 		$data = "";
-		foreach($_POST as $k =>$v){
-			if(!in_array($k,array('id')) && !is_array($_POST[$k])){
-				if(!is_numeric($v))
-				$v= $this->conn->real_escape_string($v);
-				if(!empty($data)) $data .=", ";
-				$data .=" `{$k}` = '{$v}' ";
+		foreach ($_POST as $k => $v) {
+			if (!in_array($k, array('id')) && !is_array($_POST[$k])) {
+				if (!is_numeric($v))
+					$v = $this->conn->real_escape_string($v);
+				if (!empty($data)) $data .= ", ";
+				$data .= "`{$k}` = '{$v}'";
 			}
 		}
-		if(empty($id)){
-			$sql = "INSERT INTO `stock_in_list` set {$data}";
-		}else{
-			$sql = "UPDATE `stock_in_list` set {$data} where id = '{$id}'";
+	
+		if (empty($id)) {
+			$sql = "INSERT INTO `stock_in_list` SET {$data}";
+		} else {
+			$sql = "UPDATE `stock_in_list` SET {$data} WHERE id = '{$id}'";
 		}
+	
 		$save = $this->conn->query($sql);
-		if($save){
+	
+		if ($save) {
 			$resp['status'] = 'success';
-			if(empty($id))
-			$po_id = $this->conn->insert_id;
-			else
-			$po_id = $id;
-			$resp['id'] = $po_id;
-			$data = "";
-			foreach($item_id as $k =>$v){
-				if(!empty($data)) $data .=", ";
-				$data .= "('{$po_id}','{$v}','{$qty[$k]}','{$price[$k]}','{$packaging_size[$k]}','{$total[$k]}')";
+			if (empty($id)) {
+				$po_id = $this->conn->insert_id;
+			} else {
+				$po_id = $id;
 			}
-			if(!empty($data)){
-				$this->conn->query("DELETE FROM `po_items` where po_id = '{$po_id}'");
-				$save = $this->conn->query("INSERT INTO `po_items` (`po_id`,`item_id`,`quantity`,`price`,`packaging_size`,`total`) VALUES {$data}");
-				if(!$save){
-					$resp['status'] = 'failed';
-					if(empty($id)){
-						$this->conn->query("DELETE FROM `stock_in_list` where id '{$po_id}'");
+			$resp['id'] = $po_id;
+	
+			if (!empty($item_id)) {
+				$data = array(); // Initialize an array to store item data
+	
+				foreach ($item_id as $k => $v) {
+					$quantity = isset($qty[$k]) ? $qty[$k] : 0;
+					$packaging_size = isset($packaging_size[$k]) ? $packaging_size[$k] : 0;
+					$total = $quantity * $packaging_size;
+					$data[] = "('$po_id', '$v', '$quantity', '$packaging_size', '$total')";
+				}
+	
+				if (!empty($data)) {
+					// Delete existing items and insert new ones
+					$this->conn->query("DELETE FROM `po_items` WHERE po_id = '{$po_id}'");
+					$insert_sql = "INSERT INTO `po_items` (`po_id`, `item_id`, `quantity`, `packaging_size`, `total`) VALUES " . implode(',', $data);
+					$save = $this->conn->query($insert_sql);
+	
+					if (!$save) {
+						$resp['status'] = 'failed';
+						if (empty($id)) {
+							$this->conn->query("DELETE FROM `stock_in_list` WHERE id = '{$po_id}'");
+						}
+						$resp['msg'] = 'ST has failed to save. Error: ' . $this->conn->error;
+						$resp['sql'] = $insert_sql;
 					}
-					$resp['msg'] = 'PO has failed to save. Error: '.$this->conn->error;
-					$resp['sql'] = "INSERT INTO `po_items` (`po_id`,`item_id`,`quantity`,`price`,`packaging_size`,`total`) VALUES {$data}";
 				}
 			}
-		}else{
+		} else {
 			$resp['status'] = 'failed';
-			$resp['msg'] = 'An error occured. Error: '.$this->conn->error;
+			$resp['msg'] = 'An error occurred. Error: ' . $this->conn->error;
 		}
-		if($resp['status'] == 'success'){
-			if(empty($id)){
-				$this->settings->set_flashdata('success'," New Purchase Order was Successfully created.");
-			}else{
-				$this->settings->set_flashdata('success'," Purchase Order's Details Successfully updated.");
+	
+		if ($resp['status'] == 'success') {
+			if (empty($id)) {
+				$this->settings->set_flashdata('success', "New Purchase Order was successfully created.");
+			} else {
+				$this->settings->set_flashdata('success', "Purchase Order's details were successfully updated.");
 			}
 		}
-
+	
 		return json_encode($resp);
 	}
 	function delete_po(){
@@ -287,7 +337,7 @@ Class Master extends DBConnection {
 				$sql = "INSERT INTO stock_list (`item_id`,`quantity`,`price`,`packaging_size`,`total`,`type`) VALUES ('{$v}','{$qty[$k]}','{$price[$k]}','{$packaging_size[$k]}','{$total[$k]}','1')";
 				$this->conn->query($sql);
 				$stock_ids[] = $this->conn->insert_id;
-				if($qty[$k] < $oqty[$k]){
+				if($qty[$k] < $qty[$k]){
 					$bo_ids[] = $k;
 				}
 			}
@@ -330,14 +380,14 @@ Class Master extends DBConnection {
 					$total = ($oqty[$k] - $qty[$k]) * $price[$k];
 					$stotal += $total;
 					if(!empty($data)) $data.= ", ";
-					$data .= " ('{$bo_id}','{$v}','".($oqty[$k] - $qty[$k])."','{$price[$k]}','{$packaging_size[$k]}','{$total}') ";
+					$data .= " ('{$bo_id}','{$v}','".($qty[$k] - $qty[$k])."','{$price[$k]}','{$packaging_size[$k]}','{$total}') ";
 				}
 				$this->conn->query("DELETE FROM `bo_items` where bo_id='{$bo_id}'");
 				$save_bo_items = $this->conn->query("INSERT INTO `bo_items` (`bo_id`,`item_id`,`quantity`,`price`,`packaging_size`,`total`) VALUES {$data}");
 				if($save_bo_items){
-					$discount = $stotal * ($discount_perc /100);
+					$discount = $total * ($discount_perc /100);
 					$stotal -= $discount;
-					$tax = $stotal * ($tax_perc /100);
+					$tax = $total * ($tax_perc /100);
 					$stotal += $tax;
 					$amount = $stotal;
 					$this->conn->query("UPDATE back_order_list set amount = '{$amount}', discount='{$discount}', tax = '{$tax}' where id = '{$bo_id}'");
@@ -351,7 +401,7 @@ Class Master extends DBConnection {
 			}
 		}else{
 			$resp['status'] = 'failed';
-			$resp['msg'] = 'An error occured. Error: '.$this->conn->error;
+			$resp['msg'] = 'An error occurred. Error: '.$this->conn->error;
 		}
 		if($resp['status'] == 'success'){
 			if(empty($id)){
@@ -477,7 +527,7 @@ Class Master extends DBConnection {
 			$this->conn->query("UPDATE `return_list` set stock_ids = '{$sids}' where id = '{$return_id}'");
 		}else{
 			$resp['status'] = 'failed';
-			$resp['msg'] = 'An error occured. Error: '.$this->conn->error;
+			$resp['msg'] = 'An error occurred. Error: '.$this->conn->error;
 		}
 		if($resp['status'] == 'success'){
 			if(empty($id)){
@@ -566,7 +616,7 @@ Class Master extends DBConnection {
 			$this->conn->query("UPDATE `sales_list` set stock_ids = '{$sids}' where id = '{$sale_id}'");
 		}else{
 			$resp['status'] = 'failed';
-			$resp['msg'] = 'An error occured. Error: '.$this->conn->error;
+			$resp['msg'] = 'An error occurred. Error: '.$this->conn->error;
 		}
 		if($resp['status'] == 'success'){
 			if(empty($id)){
