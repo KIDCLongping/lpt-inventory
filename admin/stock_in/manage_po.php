@@ -1,10 +1,15 @@
 <?php 
 if(isset($_GET['id'])){
     $qry = $conn->query("SELECT p.*,s.name as warehouse FROM stock_in_list p inner join warehouse_list s on p.warehouse_id = s.id  where p.id = '{$_GET['id']}'");
-    if($qry->num_rows >0){
+    if($qry->num_rows > 0){
         foreach($qry->fetch_array() as $k => $v){
             $$k = $v;
         }
+    }
+    $item_classifications = array();
+    $item_list = $conn->query("SELECT * FROM `item_list` WHERE status = 1");
+        while ($row = $item_list->fetch_assoc()) {
+        $item_classifications[$row['id']] = array(); // Initialize an empty array for each item
     }
 }
 ?>
@@ -23,7 +28,7 @@ if(isset($_GET['id'])){
 </style>
 <div class="card card-outline card-primary">
     <div class="card-header">
-        <h4 class="card-title"><?php echo isset($id) ? "Purchase Order Details - ".$po_code : 'Create New Purchase Order' ?></h4>
+        <h4 class="card-title"><?php echo isset($id) ? "Stock Transfer Details - ".$wrr : 'Stock Transfer Details' ?></h4>
     </div>
     <div class="card-body">
         <form action="" id="po-form">
@@ -31,55 +36,69 @@ if(isset($_GET['id'])){
             <div class="container-fluid">
                 <div class="row">
                     <div class="col-md-6">
-                        <label class="control-label text-info">P.O. Code</label>
-                        <input type="text" class="form-control form-control-sm rounded-0" value="<?php echo isset($po_code) ? $po_code : '' ?>" readonly>
+                        <label class="control-label text-info">WRR No:</label>
+                        <input type="text" class="form-control form-control-sm rounded-0" value="<?php echo isset($wrr) ? $wrr : '' ?>" readonly>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="warehouse_id" class="control-label text-info">warehouse</label>
+                            <label for="warehouse_id" class="control-label text-info">Warehouse</label>
                             <select name="warehouse_id" id="warehouse_id" class="custom-select select2">
-                            <option <?php echo !isset($warehouse_id) ? 'selected' : '' ?> disabled></option>
-                            <?php 
-                            $warehouse = $conn->query("SELECT * FROM `warehouse_list` where status = 1 order by `name` asc");
-                            while($row=$warehouse->fetch_assoc()):
-                            ?>
-                            <option value="<?php echo $row['id'] ?>" <?php echo isset($warehouse_id) && $warehouse_id == $row['id'] ? "selected" : "" ?> ><?php echo $row['name'] ?></option>
-                            <?php endwhile; ?>
+                                <option <?php echo !isset($warehouse_id) ? 'selected' : '' ?> disabled></option>
+                                <?php 
+                                $warehouse = $conn->query("SELECT * FROM `warehouse_list` where status = 1 order by `name` asc");
+                                while($row = $warehouse->fetch_assoc()):
+                                ?>
+                                <option value="<?php echo $row['id'] ?>" <?php echo isset($warehouse_id) && $warehouse_id == $row['id'] ? "selected" : "" ?>><?php echo $row['name'] ?></option>
+                                <?php endwhile; ?>
                             </select>
                         </div>
                     </div>
                 </div>
                 <hr>
                 <fieldset>
-                    <legend class="text-info">Item Form</legend>
+                    <legend class="text-info">Stock Transfer Form</legend>
                     <div class="row justify-content-center align-items-end">
-                            <?php 
-                                $item_arr = array();
-                                $cost_arr = array();
-                                $item = $conn->query("SELECT * FROM `item_list` where status = 1 order by `name` asc");
-                                while($row=$item->fetch_assoc()):
-                                    $item_arr[$row['warehouse_id']][$row['id']] = $row;
-                                    $cost_arr[$row['id']] = $row['cost'];
-                                endwhile;
-                            ?>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label for="item_id" class="control-label">Item</label>
-                                <select  id="item_id" class="custom-select ">
-                                    <option disabled selected></option>
-                                </select>
-                            </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label for="item_id" class="control-label">Variety</label>
+                            <select name="item_id" id="item_id" class="custom-select select2">
+                                <option disabled selected></option>
+                                <?php $item_arr = array();
+                    $item_list = $conn->query("SELECT * FROM `item_list` WHERE status = 1 ORDER BY `variety` ASC");
+                    while ($row = $item_list->fetch_assoc()) {
+                        $item_arr[$row['warehouse_id']][$row['id']] = $row;
+                        echo '<option value="' . $row['id'] . '">' . $row['variety'] . '</option>';
+                                }
+                                ?>
+                            </select>
                         </div>
-                        <div class="col-md-3">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label for="classification" class="control-label">Classification</label>
+                            <select name="classification" id="classification" class="custom-select select2" disabled>
+                                <option disabled selected></option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="lot_no" class="control-label">Batch/Lot No:</label>
+                            <select name="lot_no" id="lot_no" class="custom-select select2" disabled>
+                                <option disabled selected></option>
+                            </select>
+                        </div>
+                    </div>
+                        <div class="col-md-2">
                             <div class="form-group">
                                 <label for="packaging_size" class="control-label">Packaging Size</label>
-                                <input type="text" class="form-control rounded-0" id="packaging_size">
+                                <input type="number" step="any" class="form-control rounded-0" id="packaging_size">
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <div class="form-group">
-                                <label for="qty" class="control-label">Qty</label>
-                                <input type="number" step="any" class="form-control rounded-0" id="qty">
+                                <label for="quantity" class="control-label">Quantity</label>
+                                <input type="number" step="any" class="form-control rounded-0" id="quantity">
                             </div>
                         </div>
                         <div class="col-md-2 text-center">
@@ -87,130 +106,108 @@ if(isset($_GET['id'])){
                                 <button type="button" class="btn btn-flat btn-sm btn-primary" id="add_to_list">Add to List</button>
                             </div>
                         </div>
+                    </div>
                 </fieldset>
                 <hr>
                 <table class="table table-striped table-bordered" id="list">
-                    <colgroup>
-                        <col width="5%">
-                        <col width="10%">
-                        <col width="10%">
-                        <col width="25%">
-                        <col width="25%">
-                        <col width="25%">
-                    </colgroup>
-                    <thead>
-                        <tr class="text-light bg-navy">
-                            <th class="text-center py-1 px-2"></th>
-                            <th class="text-center py-1 px-2">Qty</th>
-                            <th class="text-center py-1 px-2">Packaging Size</th>
-                            <th class="text-center py-1 px-2">Item</th>
-                            <th class="text-center py-1 px-2">Cost</th>
-                            <th class="text-center py-1 px-2">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php 
-                        $total = 0;
-                        if(isset($id)):
-                        $qry = $conn->query("SELECT p.*,i.name,i.classification FROM `po_items` p inner join item_list i on p.item_id = i.id where p.po_id = '{$id}'");
+                <colgroup>
+                    <col width="1%">
+                    <col width="15%">
+                    <col width="15%">
+                    <col width="10%">
+                    <col width="5%">
+                    <col width="5%">
+                    <col width="5%">
+                </colgroup>
+                <thead>
+                    <tr class="text-light bg-navy">
+                        <th class="text-center py-1 px-2"></th>
+                        <th class="text-center py-1 px-2">Item</th>
+                        <th class="text-center py-1 px-2">Batch/Lot No:</th>
+                        <th class="text-center py-1 px-2">Classification</th>
+                        <th class="text-center py-1 px-2">Packaging Size</th>
+                        <th class="text-center py-1 px-2">Quantity</th>
+                        <th class="text-center py-1 px-2">Total kg</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    if(isset($id)):
+                        $qry = $conn->query("SELECT p.*,i.variety,i.classification FROM `po_items` p inner join item_list i on p.item_id = i.id where p.po_id = '{$id}'");
                         while($row = $qry->fetch_assoc()):
-                            $total += $row['total']
-                        ?>
-                        <tr>
-                            <td class="py-1 px-2 text-center">
-                                <button class="btn btn-outline-danger btn-sm rem_row" type="button"><i class="fa fa-times"></i></button>
-                            </td>
-                            <td class="py-1 px-2 text-center qty">
-                                <span class="visible"><?php echo number_format($row['quantity']); ?></span>
-                                <input type="hidden" name="item_id[]" value="<?php echo $row['item_id']; ?>">
-                                <input type="hidden" name="packaging_size[]" value="<?php echo $row['packaging_size']; ?>">
-                                <input type="hidden" name="qty[]" value="<?php echo $row['quantity']; ?>">
-                                <input type="hidden" name="price[]" value="<?php echo $row['price']; ?>">
-                                <input type="hidden" name="total[]" value="<?php echo $row['total']; ?>">
-                            </td>
-                            <td class="py-1 px-2 text-center packaging_size">
-                            <?php echo $row['packaging_size']; ?>
-                            </td>
-                            <td class="py-1 px-2 item">
-                            <?php echo $row['name']; ?> <br>
+                    ?>
+                    <tr data-id="<?php echo $row['item_id']; ?>">
+                        <td class="py-1 px-2 text-center">
+                            <button class="btn btn-outline-danger btn-sm rem_row" type="button"><i class="fa fa-times"></i></button>
+                        </td>
+                        <td class="py-1 px-2 item">
+                            <?php echo $row['variety']; ?>
+                        </td>
+                        <td class="py-1 px-2 text-center classification">
                             <?php echo $row['classification']; ?>
-                            </td>
-                            <td class="py-1 px-2 text-right cost">
-                            <?php echo number_format($row['price']); ?>
-                            </td>
-                            <td class="py-1 px-2 text-right total">
-                            <?php echo number_format($row['total']); ?>
-                            </td>
-                        </tr>
-                        <?php endwhile; ?>
-                        <?php endif; ?>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <th class="text-right py-1 px-2" colspan="5">Sub Total</th>
-                            <th class="text-right py-1 px-2 sub-total">0</th>
-                        </tr>
-                        <tr>
-                            <th class="text-right py-1 px-2" colspan="5">Discount <input style="width:40px !important" name="discount_perc" class='' type="number" min="0" max="100" value="<?php echo isset($discount_perc) ? $discount_perc : 0 ?>">%
-                                <input type="hidden" name="discount" value="<?php echo isset($discount) ? $discount : 0 ?>">
-                            </th>
-                            <th class="text-right py-1 px-2 discount"><?php echo isset($discount) ? number_format($discount) : 0 ?></th>
-                        </tr>
-                        <tr>
-                            <th class="text-right py-1 px-2" colspan="5">Tax <input style="width:40px !important" name="tax_perc" class='' type="number" min="0" max="100" value="<?php echo isset($tax_perc) ? $tax_perc : 0 ?>">%
-                                <input type="hidden" name="tax" value="<?php echo isset($discount) ? $discount : 0 ?>">
-                            </th>
-                            <th class="text-right py-1 px-2 tax"><?php echo isset($tax) ? number_format($tax) : 0 ?></th>
-                        </tr>
-                        <tr>
-                            <th class="text-right py-1 px-2" colspan="5">Total
-                                <input type="hidden" name="amount" value="<?php echo isset($discount) ? $discount : 0 ?>">
-                            </th>
-                            <th class="text-right py-1 px-2 grand-total">0</th>
-                        </tr>
-                    </tfoot>
-                </table>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="remarks" class="text-info control-label">Remarks</label>
-                            <textarea name="remarks" id="remarks" rows="3" class="form-control rounded-0"><?php echo isset($remarks) ? $remarks : '' ?></textarea>
-                        </div>
+                        </td>
+                        <td class="py-1 px-2 text-center quantity">
+                            <?php echo $row['quantity']; ?>
+                        </td>
+                        <td class="py-1 px-2 text-center packaging_size">
+                            <?php echo $row['packaging_size']; ?>
+                        </td>
+                        <td class="py-1 px-2 text-center total">
+                            <?php echo $row['total']; ?>
+                        </td>
+                    </tr>
+                    <?php endwhile; ?>
+                    <?php endif; ?>
+                    <tr id="grand_total_row">
+                        <td class="py-1 px-2 text-center"></td>
+                        <td class="py-1 px-2 text-info">Grand Total</td>
+                        <td class="py-1 px-2"></td>
+                        <td class="py-1 px-2"></td>
+                        <td class="py-1 px-2"></td>
+                        <td class="py-1 px-2"></td>
+                        <td class="py-1 px-2 text-center">
+                            <input type="text" class="form-control form-control-sm rounded-0" id="grand_total" readonly>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="remarks" class="text-info control-label">Remarks</label>
+                        <textarea name="remarks" id="remarks" rows="3" class="form-control rounded-0"><?php echo isset($remarks) ? $remarks : '' ?></textarea>
                     </div>
                 </div>
             </div>
-        </form>
-    </div>
-    <div class="card-footer py-1 text-center">
-        <button class="btn btn-flat btn-primary" type="submit" form="po-form">Save</button>
-        <a class="btn btn-flat btn-dark" href="<?php echo base_url.'/admin?page=stock_in' ?>">Cancel</a>
-    </div>
+        </div>
+    </form>
+</div>
+<div class="card-footer py-1 text-center">
+    <button class="btn btn-flat btn-primary" type="submit" form="po-form">Save</button>
+    <a class="btn btn-flat btn-dark" href="<?php echo base_url.'/admin?page=stock_in' ?>">Cancel</a>
+</div>
 </div>
 <table id="clone_list" class="d-none">
     <tr>
         <td class="py-1 px-2 text-center">
             <button class="btn btn-outline-danger btn-sm rem_row" type="button"><i class="fa fa-times"></i></button>
         </td>
-        <td class="py-1 px-2 text-center qty">
-            <span class="visible"></span>
-            <input type="hidden" name="item_id[]">
-            <input type="hidden" name="packaging_size[]">
-            <input type="hidden" name="qty[]">
-            <input type="hidden" name="price[]">
-            <input type="hidden" name="total[]">
+        <td class="py-1 px-2 text-center item">
+        </td>
+        <td class="py-1 px-2 text-center lot_no">
+        </td>
+        <td class="py-1 px-2 text-center classification">
+        </td>
+        <td class="py-1 px-2 text-center quantity">
         </td>
         <td class="py-1 px-2 text-center packaging_size">
         </td>
-        <td class="py-1 px-2 item">
-        </td>
-        <td class="py-1 px-2 text-right cost">
-        </td>
-        <td class="py-1 px-2 text-right total">
+        <td class="py-1 px-2 text-center total">
         </td>
     </tr>
 </table>
 <script>
-    var items = $.parseJSON('<?php echo json_encode($item_arr) ?>')
+var items = $.parseJSON('<?php echo json_encode($item_arr) ?>')
     var costs = $.parseJSON('<?php echo json_encode($cost_arr) ?>')
     
     $(function(){
@@ -219,7 +216,7 @@ if(isset($_GET['id'])){
             width:'resolve',
         })
         $('#item_id').select2({
-            placeholder:"Please select warehouse first",
+            placeholder:"Please select Warehouse first",
             width:'resolve',
         })
 
@@ -240,7 +237,7 @@ if(isset($_GET['id'])){
                 })
                 list_item.then(function(){
                     $('#item_id').select2({
-                        placeholder:"Please select item here",
+                        placeholder:"Please select variety here",
                         width:'resolve',
                     })
                 })
@@ -256,17 +253,16 @@ if(isset($_GET['id'])){
         })
 
         $('#add_to_list').click(function(){
-            var warehouse = $('#warehouse_id').val()
+            var supplier = $('#warehouse_id').val()
             var item = $('#item_id').val()
-            var qty = $('#qty').val() > 0 ? $('#qty').val() : 0;
+            var quantity = $('#quantity').val() > 0 ? $('#quantity').val() : 0;
             var packaging_size = $('#packaging_size').val()
-            var price = costs[item] || 0
-            var total = parseFloat(qty) *parseFloat(price)
-            // console.log(warehouse,item)
-            var item_name = items[warehouse][item].name || 'N/A';
-            var item_classification = items[warehouse][item].classification || 'N/A';
+            var total = parseFloat(quantity) *parseFloat(price)
+            // console.log(supplier,item)
+            var item_variety = items[supplier][item].variety || 'N/A';
+            var item_classification = items[supplier][item].classification || 'N/A';
             var tr = $('#clone_list tr').clone()
-            if(item == '' || qty == '' || packaging_size == '' ){
+            if(item == '' || quantity == '' || packaging_size == '' ){
                 alert_toast('Form Item textfields are required.','warning');
                 return false;
             }
@@ -275,20 +271,22 @@ if(isset($_GET['id'])){
                 return false;
             }
             tr.find('[name="item_id[]"]').val(item)
+            tr.find('.item').html(item_variety+'<br/>'+item_classification)
+            tr.find('[name="lot_no[]"]').val(packaging_size)
             tr.find('[name="packaging_size[]"]').val(packaging_size)
-            tr.find('[name="qty[]"]').val(qty)
+            tr.find('[name="quantity[]"]').val(quantity)
             tr.find('[name="price[]"]').val(price)
             tr.find('[name="total[]"]').val(total)
             tr.attr('data-id',item)
-            tr.find('.qty .visible').text(qty)
+            tr.find('.quantity .visible').text(quantity)
             tr.find('.packaging_size').text(packaging_size)
-            tr.find('.item').html(item_name+'<br/>'+item_classification)
+            tr.find('.item').html(item_variety+'<br/>'+item_classification)
             tr.find('.cost').text(parseFloat(price).toLocaleString('en-US'))
             tr.find('.total').text(parseFloat(total).toLocaleString('en-US'))
             $('table#list tbody').append(tr)
             calc()
             $('#item_id').val('').trigger('change')
-            $('#qty').val('')
+            $('#quantity').val('')
             $('#packaging_size').val('')
             tr.find('.rem_row').click(function(){
                 rem($(this))
@@ -299,80 +297,66 @@ if(isset($_GET['id'])){
             })
             $('#warehouse_id').attr('readonly','readonly')
         })
-        $('#po-form').submit(function(e){
-			e.preventDefault();
-            var _this = $(this)
-			 $('.err-msg').remove();
-			start_loader();
-			$.ajax({
-				url:_base_url_+"classes/Master.php?f=save_po",
-				data: new FormData($(this)[0]),
+        $('#po-form').submit(function (e) {
+            e.preventDefault();
+            var _this = $(this);
+            $('.err-msg').remove();
+            start_loader();
+            $.ajax({
+                url: _base_url_ + "classes/Master.php?f=save_po",
+                data: new FormData($(this)[0]),
                 cache: false,
                 contentType: false,
                 processData: false,
                 method: 'POST',
                 type: 'POST',
                 dataType: 'json',
-				error:err=>{
-					console.log(err)
-					alert_toast("An error occured",'error');
-					end_loader();
-				},
-				success:function(resp){
-					if(resp.status == 'success'){
-						location.replace(_base_url_+"admin/?page=stock_in/view_po&id="+resp.id);
-					}else if(resp.status == 'failed' && !!resp.msg){
-                        var el = $('<div>')
-                            el.addClass("alert alert-danger err-msg").text(resp.msg)
-                            _this.prepend(el)
-                            el.show('slow')
-                            end_loader()
-                    }else{
-						alert_toast("An error occured",'error');
-						end_loader();
-                        console.log(resp)
-					}
-                    $('html,body').animate({scrollTop:0},'fast')
-				}
-			})
-		})
+                error: function (xhr, status, error) {
+                    console.error(error);
+                    alert_toast("An error occurred", 'error');
+                    end_loader();
+                },
+                success: function (resp) {
+                    if (resp.status == 'success') {
+                        location.replace(_base_url_ + "admin/?page=stock_in/view_po&id=" + resp.id);
+                    } else if (resp.status == 'failed' && !!resp.msg) {
+                        var el = $('<div>');
+                        el.addClass("alert alert-danger err-msg").text(resp.msg);
+                        _this.prepend(el);
+                        el.show('slow');
+                        end_loader();
+                    } else {
+                        alert_toast("An error occurred", 'error');
+                        end_loader();
+                        console.log(resp);
+                    }
+                    $('html,body').animate({ scrollTop: 0 }, 'fast');
+                }
+            });
+        });
 
-        if('<?php echo isset($id) && $id > 0 ?>' == 1){
-            calc()
-            $('#warehouse_id').trigger('change')
-            $('#warehouse_id').attr('readonly','readonly')
-            $('table#list tbody tr .rem_row').click(function(){
-                rem($(this))
-            })
+        if ('<?php echo isset($id) && $id > 0 ?>' == 1) {
+            $('#warehouse_id').trigger('change');
+            $('#warehouse_id').prop('readonly', true);
+            $('table#list tbody tr .rem_row').click(function () {
+                rem($(this));
+            });
         }
-    })
-    function rem(_this){
-        _this.closest('tr').remove()
-        calc()
-        if($('table#list tbody tr').length <= 0)
-            $('#warehouse_id').removeAttr('readonly')
 
-    }
-    function calc(){
-        var sub_total = 0;
-        var grand_total = 0;
-        var discount = 0;
-        var tax = 0;
-        $('table#list tbody input[name="total[]"]').each(function(){
-            sub_total += parseFloat($(this).val())
-            
-        })
-        $('table#list tfoot .sub-total').text(parseFloat(sub_total).toLocaleString('en-US',{style:'decimal',maximumFractionDigit:2}))
-        var discount =   sub_total * (parseFloat($('[name="discount_perc"]').val()) /100)
-        sub_total = sub_total - discount;
-        var tax =   sub_total * (parseFloat($('[name="tax_perc"]').val()) /100)
-        grand_total = sub_total + tax
-        $('.discount').text(parseFloat(discount).toLocaleString('en-US',{style:'decimal',maximumFractionDigit:2}))
-        $('[name="discount"]').val(parseFloat(discount))
-        $('.tax').text(parseFloat(tax).toLocaleString('en-US',{style:'decimal',maximumFractionDigit:2}))
-        $('[name="tax"]').val(parseFloat(tax))
-        $('table#list tfoot .grand-total').text(parseFloat(grand_total).toLocaleString('en-US',{style:'decimal',maximumFractionDigit:2}))
-        $('[name="amount"]').val(parseFloat(grand_total))
+        function rem(_this) {
+            _this.closest('tr').remove();
+            updateGrandTotalRow();
+        }
 
-    }
+        function updateGrandTotalRow() {
+            var grandTotalRow = $('table#list tbody tr#grand_total_row');
+            if (grandTotalRow.length == 0) {
+                grandTotalRow = $('#clone_list tr#grand_total_row').clone();
+                grandTotalRow.find('.total').html(grandTotal.toFixed(2));
+                $('table#list tbody').append(grandTotalRow);
+            } else {
+                grandTotalRow.find('.total').html(grandTotal.toFixed(2));
+            }
+        }
+    });
 </script>
